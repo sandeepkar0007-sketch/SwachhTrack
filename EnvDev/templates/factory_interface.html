@@ -1,0 +1,1241 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoFactory | Waste Processing Plant</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Chart.js for waste analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Leaflet for factory map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;color:#eaffea;background:#000;overflow-x:hidden}
+canvas{position:fixed;inset:0;z-index:-3}
+.overlay{position:fixed;inset:0;background:radial-gradient(circle, rgba(0,0,0,0.35), rgba(0,0,0,0.85));z-index:-2}
+
+/* ===== FACTORY NAVBAR ===== */
+.factory-navbar{
+  position:sticky;top:0;z-index:1000;padding:15px 30px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(30,64,175,0.95);backdrop-filter:blur(12px);
+  border-bottom:2px solid #3b82f6;
+}
+.factory-logo{
+  display:flex;align-items:center;gap:15px;
+}
+.factory-logo h1{color:#eaffea;font-size:1.8rem}
+.factory-logo span{
+  background:#3b82f6;color:white;padding:4px 12px;
+  border-radius:15px;font-size:0.8rem;font-weight:600;
+}
+.factory-controls{
+  display:flex;align-items:center;gap:20px;
+}
+.control-btn{
+  background:#3b82f6;color:white;border:none;
+  padding:10px 20px;border-radius:20px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;gap:8px;
+}
+.control-btn:hover{background:#2563eb}
+.status-badge{
+  padding:6px 15px;background:#10b981;color:white;
+  border-radius:15px;font-size:0.9rem;font-weight:600;
+  display:flex;align-items:center;gap:5px;
+}
+
+/* ===== FACTORY LAYOUT ===== */
+.factory-container{
+  max-width:1600px;margin:0 auto;padding:30px 20px;
+  display:grid;grid-template-columns:350px 1fr 400px;
+  gap:25px;min-height:calc(100vh - 80px);
+}
+
+/* ===== LEFT: INCOMING TRUCKS ===== */
+.incoming-trucks{
+  background:rgba(255,255,255,0.08);border-radius:25px;
+  padding:25px;backdrop-filter:blur(15px);
+  border:1px solid rgba(59,130,246,0.2);
+}
+.section-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:25px;
+}
+.section-header h2{color:#3b82f6;font-size:1.4rem}
+.header-badge{
+  background:#3b82f6;color:white;padding:4px 12px;
+  border-radius:12px;font-size:0.8rem;font-weight:600;
+}
+
+.truck-list{
+  display:flex;flex-direction:column;gap:15px;
+  max-height:400px;overflow-y:auto;
+}
+.truck-card{
+  background:rgba(255,255,255,0.05);padding:20px;
+  border-radius:15px;border-left:4px solid #3b82f6;
+  cursor:pointer;transition:.3s;
+}
+.truck-card:hover{
+  background:rgba(255,255,255,0.1);transform:translateX(5px);
+}
+.truck-card.arrived{
+  border-left-color:#10b981;background:rgba(16,185,129,0.1);
+}
+.truck-card.processing{
+  border-left-color:#f59e0b;background:rgba(245,158,11,0.1);
+}
+.truck-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:10px;
+}
+.truck-id{color:#3b82f6;font-weight:600;font-size:1.1rem}
+.truck-status{
+  padding:3px 10px;border-radius:12px;font-size:0.7rem;
+  font-weight:600;
+}
+.status-enroute{background:#3b82f6;color:white}
+.status-arrived{background:#10b981;color:white}
+.status-processing{background:#f59e0b;color:white}
+.truck-info{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  margin-top:15px;
+}
+.info-item{font-size:0.9rem}
+.info-label{color:#c8facc}
+.info-value{color:#eaffea;font-weight:500}
+
+/* ===== CENTER: WASTE PROCESSING ===== */
+.processing-center{
+  display:flex;flex-direction:column;gap:25px;
+}
+.factory-map{
+  background:rgba(255,255,255,0.08);border-radius:25px;
+  padding:20px;backdrop-filter:blur(15px);
+  border:1px solid rgba(59,130,246,0.2);
+  flex:1;
+}
+#factoryMap{
+  height:300px;border-radius:15px;overflow:hidden;
+  background:#1a1a1a;
+}
+
+.waste-sorting{
+  background:rgba(255,255,255,0.08);border-radius:25px;
+  padding:25px;backdrop-filter:blur(15px);
+  border:1px solid rgba(59,130,246,0.2);
+}
+.sorting-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:25px;
+}
+.progress-bar{
+  height:8px;background:rgba(255,255,255,0.1);
+  border-radius:4px;overflow:hidden;margin:15px 0;
+}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,#3b82f6,#10b981);
+  border-radius:4px;width:65%;
+}
+.sorting-grid{
+  display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+  gap:15px;margin-top:25px;
+}
+.sorting-bin{
+  background:rgba(255,255,255,0.05);padding:20px;
+  border-radius:15px;text-align:center;cursor:pointer;
+  transition:.3s;border:2px solid transparent;
+}
+.sorting-bin:hover{
+  transform:translateY(-5px);border-color:currentColor;
+}
+.bin-icon{font-size:2.5rem;margin-bottom:10px}
+.bin-name{font-weight:600;margin-bottom:5px}
+.bin-weight{color:#c8facc;font-size:0.9rem}
+.bin-plastic{color:#3b82f6;border-color:#3b82f6}
+.bin-paper{color:#10b981;border-color:#10b981}
+.bin-metal{color:#f59e0b;border-color:#f59e0b}
+.bin-glass{color:#8b5cf6;border-color:#8b5cf6}
+.bin-organic{color:#ef4444;border-color:#ef4444}
+.bin-electronic{color:#6366f1;border-color:#6366f1}
+
+/* ===== RIGHT: PROCESSING ANALYTICS ===== */
+.factory-analytics{
+  display:flex;flex-direction:column;gap:25px;
+}
+.analytics-card{
+  background:rgba(255,255,255,0.08);border-radius:25px;
+  padding:25px;backdrop-filter:blur(15px);
+  border:1px solid rgba(59,130,246,0.2);
+}
+.chart-container{height:250px;position:relative}
+.stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:15px;
+  margin-top:20px;
+}
+.stat-box{
+  background:rgba(255,255,255,0.05);padding:15px;
+  border-radius:12px;text-align:center;
+}
+.stat-value{
+  font-size:2rem;font-weight:700;color:#3b82f6;
+  margin-bottom:5px;
+}
+.stat-label{color:#c8facc;font-size:0.9rem}
+
+.process-controls{
+  display:flex;flex-direction:column;gap:12px;
+  margin-top:25px;
+}
+.process-btn{
+  padding:15px;border-radius:12px;font-weight:600;
+  cursor:pointer;border:none;transition:.3s;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.process-btn.primary{
+  background:#3b82f6;color:white;
+}
+.process-btn.primary:hover{background:#2563eb}
+.process-btn.secondary{
+  background:transparent;color:#3b82f6;
+  border:2px solid #3b82f6;
+}
+.process-btn.secondary:hover{background:rgba(59,130,246,0.1)}
+
+/* ===== UNLOADING BAY ===== */
+.unloading-bay{
+  background:rgba(255,255,255,0.08);border-radius:25px;
+  padding:25px;backdrop-filter:blur(15px);
+  border:1px solid rgba(59,130,246,0.2);
+}
+.bay-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:25px;
+}
+.bay-status{
+  display:flex;align-items:center;gap:10px;
+}
+.status-light{
+  width:12px;height:12px;border-radius:50%;
+  background:#10b981;box-shadow:0 0 10px #10b981;
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:0.5}
+}
+.bay-controls{
+  display:grid;grid-template-columns:1fr 1fr;gap:15px;
+}
+.bay-btn{
+  padding:12px;border-radius:10px;font-weight:600;
+  cursor:pointer;border:none;transition:.3s;
+}
+.bay-btn.start{
+  background:#10b981;color:white;
+}
+.bay-btn.start:hover{background:#0da271}
+.bay-btn.stop{
+  background:#ef4444;color:white;
+}
+.bay-btn.stop:hover{background:#dc2626}
+
+/* ===== TRUCK DETAIL MODAL ===== */
+.truck-modal{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.8);z-index:9999;
+  display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(10px);
+}
+.truck-modal-content{
+  background:rgba(30,64,175,0.95);padding:40px;
+  border-radius:25px;max-width:600px;width:90%;
+  border:2px solid #3b82f6;
+}
+.modal-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:25px;
+}
+.modal-header h2{color:#3b82f6;font-size:1.8rem}
+.close-modal{
+  background:none;border:none;color:#c8facc;
+  font-size:1.5rem;cursor:pointer;
+}
+.waste-composition{
+  display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));
+  gap:15px;margin:25px 0;
+}
+.composition-item{
+  background:rgba(255,255,255,0.1);padding:15px;
+  border-radius:12px;text-align:center;
+}
+.composition-type{font-weight:600;margin-bottom:5px}
+.composition-percent{
+  font-size:1.8rem;font-weight:700;color:#3b82f6;
+}
+.composition-weight{color:#c8facc;font-size:0.9rem}
+
+/* ===== PROCESS COMPLETION ===== */
+.process-complete{
+  position:fixed;top:100px;right:30px;z-index:9998;
+  background:#022c22;border-left:6px solid #10b981;
+  border-radius:15px;padding:20px;width:350px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.5);
+  transform:translateX(400px);transition:transform 0.5s ease;
+  backdrop-filter:blur(10px);
+}
+.process-complete.show{
+  transform:translateX(0);
+}
+.complete-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:15px;
+}
+.complete-title{color:#10b981;font-weight:600;font-size:1.1rem}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1400px){
+  .factory-container{grid-template-columns:1fr 1fr}
+}
+@media(max-width:992px){
+  .factory-container{grid-template-columns:1fr}
+  .factory-navbar{padding:12px 20px;flex-direction:column;gap:12px}
+  .sorting-grid{grid-template-columns:repeat(3, 1fr)}
+}
+@media(max-width:768px){
+  .sorting-grid{grid-template-columns:repeat(2, 1fr)}
+  .truck-info{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="earth"></canvas>
+<div class="overlay"></div>
+
+<!-- ===== FACTORY NAVBAR ===== -->
+<header class="factory-navbar">
+  <div class="factory-logo">
+    <h1>🏭 EcoFactory</h1>
+    <span>Waste Processing Plant #042</span>
+  </div>
+  
+  <div class="factory-controls">
+    <div class="status-badge">
+      <i class="fas fa-circle" style="font-size:8px"></i>
+      Operational
+    </div>
+    <button class="control-btn" onclick="toggleShift()">
+      <i class="fas fa-cogs"></i> Shift Controls
+    </button>
+  </div>
+</header>
+
+<main class="factory-container">
+  <!-- LEFT: INCOMING TRUCKS -->
+  <div class="incoming-trucks">
+    <div class="section-header">
+      <h2><i class="fas fa-truck-moving"></i> Incoming Trucks</h2>
+      <div class="header-badge" id="truckCount">4 trucks</div>
+    </div>
+    
+    <div class="truck-list" id="truckList">
+      <!-- Trucks will be loaded dynamically -->
+    </div>
+    
+    <div style="margin-top:25px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.1)">
+      <div class="info-item">
+        <div class="info-label">Total Today</div>
+        <div class="info-value">12 trucks | 28.5 tons</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Processing Rate</div>
+        <div class="info-value">4.2 tons/hour</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: WASTE PROCESSING -->
+  <div class="processing-center">
+    <div class="factory-map">
+      <div class="section-header">
+        <h2><i class="fas fa-map-marked-alt"></i> Factory Layout</h2>
+        <span style="color:#c8facc;font-size:0.9rem">
+          <i class="fas fa-industry"></i> Zone: Unloading Bay
+        </span>
+      </div>
+      <div id="factoryMap"></div>
+    </div>
+    
+    <div class="waste-sorting">
+      <div class="sorting-header">
+        <h2><i class="fas fa-recycle"></i> Waste Sorting</h2>
+        <span style="color:#3b82f6;font-weight:600">Live</span>
+      </div>
+      
+      <div style="color:#c8facc;margin-bottom:15px">
+        <i class="fas fa-info-circle"></i> Current Batch: Truck ET-7842
+      </div>
+      
+      <div class="progress-bar">
+        <div class="progress-fill" id="sortingProgress"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.9rem;color:#c8facc">
+        <span>0%</span>
+        <span id="progressPercent">65%</span>
+        <span>100%</span>
+      </div>
+      
+      <div class="sorting-grid" id="sortingGrid">
+        <!-- Sorting bins will be loaded dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PROCESSING ANALYTICS -->
+  <div class="factory-analytics">
+    <div class="analytics-card">
+      <div class="section-header">
+        <h2><i class="fas fa-chart-pie"></i> Waste Composition</h2>
+        <span style="color:#c8facc;font-size:0.9rem">Today</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="wasteChart"></canvas>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-value" id="recyclablePercent">72%</div>
+          <div class="stat-label">Recyclable</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="nonRecyclablePercent">28%</div>
+          <div class="stat-label">Non-Recyclable</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="unloading-bay">
+      <div class="bay-header">
+        <h2><i class="fas fa-dumpster"></i> Unloading Bay</h2>
+        <div class="bay-status">
+          <div class="status-light"></div>
+          <span style="color:#10b981;font-weight:600">Active</span>
+        </div>
+      </div>
+      
+      <div style="color:#c8facc;margin-bottom:20px">
+        <i class="fas fa-truck-loading"></i> Currently unloading: <strong>Truck ET-7842</strong>
+      </div>
+      
+      <div class="bay-controls">
+        <button class="bay-btn start" onclick="startUnloading()">
+          <i class="fas fa-play"></i> Start Unload
+        </button>
+        <button class="bay-btn stop" onclick="stopUnloading()">
+          <i class="fas fa-stop"></i> Emergency Stop
+        </button>
+      </div>
+    </div>
+    
+    <div class="analytics-card">
+      <div class="section-header">
+        <h2><i class="fas fa-cogs"></i> Processing Controls</h2>
+      </div>
+      
+      <div class="process-controls">
+        <button class="process-btn primary" onclick="startSorting()">
+          <i class="fas fa-play-circle"></i> Start Sorting Process
+        </button>
+        <button class="process-btn secondary" onclick="qualityCheck()">
+          <i class="fas fa-clipboard-check"></i> Quality Check
+        </button>
+        <button class="process-btn secondary" onclick="generateReport()">
+          <i class="fas fa-file-export"></i> Generate Report
+        </button>
+        <button class="process-btn secondary" onclick="dispatchTruck()">
+          <i class="fas fa-truck"></i> Dispatch Empty Truck
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- TRUCK DETAIL MODAL -->
+<div class="truck-modal" id="truckModal">
+  <div class="truck-modal-content">
+    <div class="modal-header">
+      <h2 id="modalTruckId">Truck Details</h2>
+      <button class="close-modal" onclick="closeModal()">×</button>
+    </div>
+    
+    <div class="truck-info" style="grid-template-columns:1fr 1fr;gap:20px;margin-bottom:25px">
+      <div>
+        <div class="info-label">Driver</div>
+        <div class="info-value" id="modalDriver">Rajesh Kumar</div>
+      </div>
+      <div>
+        <div class="info-label">Arrival Time</div>
+        <div class="info-value" id="modalArrival">14:30 IST</div>
+      </div>
+      <div>
+        <div class="info-label">Waste Type</div>
+        <div class="info-value" id="modalWasteType">Mixed</div>
+      </div>
+      <div>
+        <div class="info-label">Weight</div>
+        <div class="info-value" id="modalWeight">2.4 tons</div>
+      </div>
+    </div>
+    
+    <h3 style="color:#3b82f6;margin-bottom:15px">Waste Composition</h3>
+    <div class="waste-composition" id="modalComposition">
+      <!-- Composition items will be added dynamically -->
+    </div>
+    
+    <div style="margin-top:25px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.1)">
+      <h4 style="color:#c8facc;margin-bottom:10px">Processing Instructions</h4>
+      <p style="color:#eaffea" id="modalInstructions">
+        Separate plastics (PET, HDPE) for recycling. Organic waste to compost.
+        Electronic waste requires special handling.
+      </p>
+    </div>
+    
+    <div style="display:flex;gap:15px;margin-top:30px">
+      <button class="process-btn secondary" style="flex:1" onclick="closeModal()">
+        Close
+      </button>
+      <button class="process-btn primary" style="flex:1" onclick="beginProcessing()">
+        Begin Processing
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- PROCESS COMPLETION NOTIFICATION -->
+<div class="process-complete" id="processComplete">
+  <div class="complete-header">
+    <div class="complete-title">
+      <i class="fas fa-check-circle"></i> Processing Complete!
+    </div>
+    <button class="close-modal" onclick="closeComplete()">×</button>
+  </div>
+  <div style="color:#eaffea;margin-top:10px">
+    <p><strong>✅ Truck ET-7842 processed successfully</strong></p>
+    <p>2.4 tons sorted • 72% recycled • Report generated</p>
+    <p style="color:#10b981;font-size:0.9rem;margin-top:10px">
+      <i class="fas fa-truck"></i> Truck dispatched back to collection route
+    </p>
+  </div>
+</div>
+
+<!-- SPLINE ROBOT -->
+<div class="spline-float" style="position:fixed;bottom:18px;right:18px;width:130px;height:130px;z-index:999">
+  <spline-viewer url="https://prod.spline.design/UQEVAplfqnBX3NcV/scene.splinecode"></spline-viewer>
+</div>
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.36/build/spline-viewer.js"></script>
+
+<script>
+// ===== INITIALIZE =====
+let isProcessing = false;
+let unloadingActive = false;
+let currentProgress = 65;
+
+// Factory trucks data
+const factoryTrucks = [
+  {
+    id: "ET-7842",
+    driver: "Rajesh Kumar",
+    status: "processing",
+    wasteType: "Mixed",
+    weight: "2.4 tons",
+    arrival: "14:30 IST",
+    location: "At Unloading Bay",
+    composition: {
+      plastic: { percent: 35, weight: "840kg", type: "PET/HDPE", recyclable: true },
+      paper: { percent: 20, weight: "480kg", type: "Cardboard/Mixed", recyclable: true },
+      metal: { percent: 15, weight: "360kg", type: "Aluminum/Steel", recyclable: true },
+      glass: { percent: 12, weight: "288kg", type: "Clear/Colored", recyclable: true },
+      organic: { percent: 10, weight: "240kg", type: "Food Waste", recyclable: false },
+      electronic: { percent: 8, weight: "192kg", type: "E-Waste", recyclable: true }
+    }
+  },
+  {
+    id: "ET-8915",
+    driver: "Amit Sharma",
+    status: "arrived",
+    wasteType: "Plastic",
+    weight: "1.8 tons",
+    arrival: "15:15 IST",
+    location: "Gate 3",
+    composition: {
+      plastic: { percent: 85, weight: "1530kg", type: "PET/LDPE", recyclable: true },
+      metal: { percent: 10, weight: "180kg", type: "Aluminum", recyclable: true },
+      other: { percent: 5, weight: "90kg", type: "Contaminants", recyclable: false }
+    }
+  },
+  {
+    id: "ET-6734",
+    driver: "Priya Patel",
+    status: "enroute",
+    wasteType: "Organic",
+    weight: "3.2 tons",
+    arrival: "16:00 IST",
+    location: "5 km away",
+    composition: {
+      organic: { percent: 90, weight: "2880kg", type: "Food/Garden", recyclable: false },
+      plastic: { percent: 8, weight: "256kg", type: "Contamination", recyclable: true },
+      other: { percent: 2, weight: "64kg", type: "Misc", recyclable: false }
+    }
+  },
+  {
+    id: "ET-4257",
+    driver: "Sanjay Gupta",
+    status: "enroute",
+    wasteType: "Construction",
+    weight: "4.5 tons",
+    arrival: "17:30 IST",
+    location: "12 km away",
+    composition: {
+      concrete: { percent: 60, weight: "2700kg", type: "Broken", recyclable: false },
+      metal: { percent: 25, weight: "1125kg", type: "Rebar/Steel", recyclable: true },
+      wood: { percent: 10, weight: "450kg", type: "Timber", recyclable: true },
+      other: { percent: 5, weight: "225kg", type: "Hazardous", recyclable: false }
+    }
+  }
+];
+
+// Waste sorting bins
+const wasteBins = [
+  { id: "plastic", name: "Plastic", icon: "♻️", color: "plastic", weight: "840kg", type: "PET/HDPE" },
+  { id: "paper", name: "Paper", icon: "📄", color: "paper", weight: "480kg", type: "Cardboard" },
+  { id: "metal", name: "Metal", icon: "⚙️", color: "metal", weight: "360kg", type: "Aluminum" },
+  { id: "glass", name: "Glass", icon: "🥃", color: "glass", weight: "288kg", type: "Clear" },
+  { id: "organic", name: "Organic", icon: "🍂", color: "organic", weight: "240kg", type: "Compost" },
+  { id: "electronic", name: "E-Waste", icon: "💻", color: "electronic", weight: "192kg", type: "Electronics" }
+];
+
+// ===== INITIALIZE MAP =====
+const factoryMap = L.map('factoryMap').setView([28.6139, 77.2090], 16);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(factoryMap);
+
+// Add factory zones
+const factoryBounds = [
+  [28.6145, 77.2085],
+  [28.6133, 77.2095]
+];
+
+const factoryZone = L.rectangle(factoryBounds, {
+  color: "#3b82f6",
+  fillColor: "#3b82f6",
+  fillOpacity: 0.1,
+  weight: 2
+}).addTo(factoryMap);
+
+// Add unloading bay
+const unloadingBay = L.circle([28.6140, 77.2090], {
+  color: "#10b981",
+  fillColor: "#10b981",
+  fillOpacity: 0.3,
+  radius: 40
+}).addTo(factoryMap).bindPopup('<strong>Unloading Bay</strong><br>Active: Truck ET-7842');
+
+// Add sorting area
+const sortingArea = L.polygon([
+  [28.6138, 77.2087],
+  [28.6138, 77.2093],
+  [28.6134, 77.2093],
+  [28.6134, 77.2087]
+], {
+  color: "#f59e0b",
+  fillColor: "#f59e0b",
+  fillOpacity: 0.2,
+  weight: 2
+}).addTo(factoryMap).bindPopup('<strong>Sorting Area</strong><br>Waste classification');
+
+// Add truck marker
+const truckMarker = L.marker([28.6140, 77.2090], {
+  icon: L.divIcon({
+    html: '<div style="background:#3b82f6;width:25px;height:25px;border-radius:50%;border:3px solid white;box-shadow:0 0 15px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">🚛</div>',
+    className: 'factory-truck',
+    iconSize: [25, 25]
+  })
+}).addTo(factoryMap).bindPopup('Truck ET-7842<br>Unloading in progress');
+
+// ===== INITIALIZE CHARTS =====
+let wasteChart;
+function initWasteChart() {
+  const ctx = document.getElementById('wasteChart').getContext('2d');
+  
+  const wasteData = {
+    plastic: 35,
+    paper: 20,
+    metal: 15,
+    glass: 12,
+    organic: 10,
+    electronic: 8
+  };
+  
+  const recyclable = 35 + 20 + 15 + 12 + 8; // Everything except organic
+  const nonRecyclable = 10;
+  
+  document.getElementById('recyclablePercent').textContent = `${recyclable}%`;
+  document.getElementById('nonRecyclablePercent').textContent = `${nonRecyclable}%`;
+  
+  wasteChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Plastic', 'Paper', 'Metal', 'Glass', 'Organic', 'E-Waste'],
+      datasets: [{
+        data: Object.values(wasteData),
+        backgroundColor: [
+          '#3b82f6', '#10b981', '#f59e0b', 
+          '#8b5cf6', '#ef4444', '#6366f1'
+        ],
+        borderWidth: 2,
+        borderColor: '#000'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#eaffea', padding: 20 } }
+      }
+    }
+  });
+}
+
+// ===== LOAD TRUCK LIST =====
+function loadTruckList() {
+  const truckList = document.getElementById('truckList');
+  const truckCount = document.getElementById('truckCount');
+  
+  truckList.innerHTML = '';
+  truckCount.textContent = `${factoryTrucks.length} trucks`;
+  
+  factoryTrucks.forEach(truck => {
+    const card = document.createElement('div');
+    card.className = `truck-card ${truck.status}`;
+    card.onclick = () => showTruckDetails(truck);
+    
+    card.innerHTML = `
+      <div class="truck-header">
+        <div class="truck-id">${truck.id}</div>
+        <div class="truck-status status-${truck.status}">
+          ${truck.status.charAt(0).toUpperCase() + truck.status.slice(1)}
+        </div>
+      </div>
+      <div style="color:#c8facc;font-size:0.9rem">
+        <i class="fas fa-user"></i> ${truck.driver}
+      </div>
+      <div class="truck-info">
+        <div class="info-item">
+          <div class="info-label">Waste Type</div>
+          <div class="info-value">${truck.wasteType}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Weight</div>
+          <div class="info-value">${truck.weight}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Arrival</div>
+          <div class="info-value">${truck.arrival}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Location</div>
+          <div class="info-value">${truck.location}</div>
+        </div>
+      </div>
+    `;
+    
+    truckList.appendChild(card);
+  });
+}
+
+// ===== LOAD SORTING BINS =====
+function loadSortingBins() {
+  const sortingGrid = document.getElementById('sortingGrid');
+  
+  sortingGrid.innerHTML = '';
+  
+  wasteBins.forEach(bin => {
+    const binDiv = document.createElement('div');
+    binDiv.className = `sorting-bin bin-${bin.color}`;
+    binDiv.onclick = () => inspectBin(bin);
+    
+    binDiv.innerHTML = `
+      <div class="bin-icon">${bin.icon}</div>
+      <div class="bin-name">${bin.name}</div>
+      <div class="bin-weight">${bin.weight}</div>
+      <div style="color:#c8facc;font-size:0.8rem;margin-top:5px">${bin.type}</div>
+    `;
+    
+    sortingGrid.appendChild(binDiv);
+  });
+}
+
+// ===== SHOW TRUCK DETAILS =====
+function showTruckDetails(truck) {
+  const modal = document.getElementById('truckModal');
+  
+  document.getElementById('modalTruckId').textContent = `Truck ${truck.id}`;
+  document.getElementById('modalDriver').textContent = truck.driver;
+  document.getElementById('modalArrival').textContent = truck.arrival;
+  document.getElementById('modalWasteType').textContent = truck.waste;
+    document.getElementById('modalWeight').textContent = truck.weight;
+  
+  const compositionDiv = document.getElementById('modalComposition');
+  compositionDiv.innerHTML = '';
+  
+  Object.entries(truck.composition).forEach(([type, data]) => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'composition-item';
+    itemDiv.innerHTML = `
+      <div class="composition-type">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+      <div class="composition-percent">${data.percent}%</div>
+      <div class="composition-weight">${data.weight}</div>
+      <div style="font-size:0.8rem;color:${data.recyclable ? '#10b981' : '#ef4444'}">
+        ${data.recyclable ? '♻️ Recyclable' : '⚠️ Non-recyclable'}
+      </div>
+    `;
+    compositionDiv.appendChild(itemDiv);
+  });
+  
+  let instructions = "Standard processing: ";
+  if (truck.wasteType === "Mixed") {
+    instructions = "Separate plastics (PET, HDPE) for recycling. Organic waste to compost. Electronic waste requires special handling.";
+  } else if (truck.wasteType === "Plastic") {
+    instructions = "High plastic content - route to plastic recycling line. Check for PVC contamination.";
+  } else if (truck.wasteType === "Organic") {
+    instructions = "Primary organic waste - send to composting facility. Remove plastic contaminants.";
+  } else if (truck.wasteType === "Construction") {
+    instructions = "Construction debris - separate metals for recycling. Concrete to crushing facility. Check for hazardous materials.";
+  }
+  
+  document.getElementById('modalInstructions').textContent = instructions;
+  
+  modal.style.display = 'flex';
+}
+
+// ===== CLOSE MODAL =====
+function closeModal() {
+  document.getElementById('truckModal').style.display = 'none';
+}
+
+// ===== START UNLOADING =====
+function startUnloading() {
+  if (unloadingActive) {
+    alert("Unloading is already in progress!");
+    return;
+  }
+  
+  unloadingActive = true;
+  document.querySelector('.bay-btn.start').innerHTML = '<i class="fas fa-pause"></i> Pause Unload';
+  document.querySelector('.bay-btn.start').onclick = pauseUnloading;
+  
+  const statusLight = document.querySelector('.status-light');
+  statusLight.style.background = '#f59e0b';
+  statusLight.style.boxShadow = '0 0 10px #f59e0b';
+  
+  // Update truck status
+  const currentTruck = factoryTrucks[0];
+  currentTruck.location = "Unloading in progress";
+  currentTruck.status = "processing";
+  loadTruckList();
+  
+  // Simulate unloading progress
+  let progress = 0;
+  const unloadingInterval = setInterval(() => {
+    if (!unloadingActive) {
+      clearInterval(unloadingInterval);
+      return;
+    }
+    
+    progress += 5;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(unloadingInterval);
+      completeUnloading();
+    }
+    
+    document.getElementById('sortingProgress').style.width = `${progress}%`;
+    document.getElementById('progressPercent').textContent = `${progress}%`;
+  }, 500);
+}
+
+function pauseUnloading() {
+  unloadingActive = false;
+  document.querySelector('.bay-btn.start').innerHTML = '<i class="fas fa-play"></i> Resume Unload';
+  document.querySelector('.bay-btn.start').onclick = startUnloading;
+  
+  const statusLight = document.querySelector('.status-light');
+  statusLight.style.background = '#f59e0b';
+  statusLight.style.boxShadow = '0 0 10px #f59e0b';
+}
+
+function stopUnloading() {
+  unloadingActive = false;
+  document.querySelector('.bay-btn.start').innerHTML = '<i class="fas fa-play"></i> Start Unload';
+  document.querySelector('.bay-btn.start').onclick = startUnloading;
+  
+  const statusLight = document.querySelector('.status-light');
+  statusLight.style.background = '#ef4444';
+  statusLight.style.boxShadow = '0 0 10px #ef4444';
+  
+  document.getElementById('sortingProgress').style.width = '0%';
+  document.getElementById('progressPercent').textContent = '0%';
+  
+  alert("Emergency stop activated! Unloading halted.");
+}
+
+function completeUnloading() {
+  unloadingActive = false;
+  document.querySelector('.bay-btn.start').innerHTML = '<i class="fas fa-play"></i> Start Unload';
+  document.querySelector('.bay-btn.start').onclick = startUnloading;
+  
+  const statusLight = document.querySelector('.status-light');
+  statusLight.style.background = '#10b981';
+  statusLight.style.boxShadow = '0 0 10px #10b981';
+  
+  // Update truck
+  const currentTruck = factoryTrucks[0];
+  currentTruck.location = "Unloaded - Ready for sorting";
+  currentTruck.status = "arrived";
+  loadTruckList();
+  
+  showNotification(`✅ Unloading complete for ${currentTruck.id}`);
+}
+
+// ===== START SORTING =====
+function startSorting() {
+  if (isProcessing) {
+    alert("Sorting is already in progress!");
+    return;
+  }
+  
+  isProcessing = true;
+  
+  // Update bins with animation
+  const bins = document.querySelectorAll('.sorting-bin');
+  bins.forEach((bin, index) => {
+    setTimeout(() => {
+      bin.style.transform = 'translateY(-10px)';
+      bin.style.boxShadow = '0 10px 20px rgba(0,0,0,0.3)';
+      bin.style.borderColor = '#10b981';
+    }, index * 300);
+  });
+  
+  // Simulate sorting progress
+  let progress = 65;
+  const sortingInterval = setInterval(() => {
+    progress += 2;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(sortingInterval);
+      completeSorting();
+    }
+    
+    document.getElementById('sortingProgress').style.width = `${progress}%`;
+    document.getElementById('progressPercent').textContent = `${progress}%`;
+  }, 300);
+}
+
+function completeSorting() {
+  isProcessing = false;
+  
+  // Show completion notification
+  const completeDiv = document.getElementById('processComplete');
+  completeDiv.classList.add('show');
+  
+  // Reset bins
+  const bins = document.querySelectorAll('.sorting-bin');
+  bins.forEach(bin => {
+    bin.style.transform = 'translateY(0)';
+    bin.style.boxShadow = 'none';
+    bin.style.borderColor = 'transparent';
+  });
+  
+  // Update truck status
+  const currentTruck = factoryTrucks.shift(); // Remove first truck
+  if (currentTruck) {
+    currentTruck.status = "completed";
+    showNotification(`✅ Sorting complete for ${currentTruck.id}. Truck dispatched back.`);
+  }
+  
+  // Add a new truck
+  const newTruck = {
+    id: `ET-${Math.floor(1000 + Math.random() * 9000)}`,
+    driver: ["Vikram Singh", "Anjali Mehta", "Rohit Verma"][Math.floor(Math.random() * 3)],
+    status: "enroute",
+    wasteType: ["Mixed", "Plastic", "Organic", "Construction"][Math.floor(Math.random() * 4)],
+    weight: `${(Math.random() * 3 + 1.5).toFixed(1)} tons`,
+    arrival: "18:45 IST",
+    location: `${Math.floor(Math.random() * 15) + 5} km away`,
+    composition: generateRandomComposition()
+  };
+  
+  factoryTrucks.push(newTruck);
+  loadTruckList();
+}
+
+function generateRandomComposition() {
+  const types = ['plastic', 'paper', 'metal', 'glass', 'organic', 'electronic'];
+  const composition = {};
+  let remainingPercent = 100;
+  
+  for (let i = 0; i < types.length - 1; i++) {
+    const percent = Math.floor(Math.random() * (remainingPercent / 2));
+    composition[types[i]] = {
+      percent: percent,
+      weight: `${(percent * 24).toFixed(0)}kg`,
+      type: types[i] === 'plastic' ? 'PET/HDPE' : 
+            types[i] === 'paper' ? 'Cardboard' :
+            types[i] === 'metal' ? 'Aluminum' :
+            types[i] === 'glass' ? 'Clear' :
+            types[i] === 'organic' ? 'Compost' : 'Electronics',
+      recyclable: types[i] !== 'organic'
+    };
+    remainingPercent -= percent;
+  }
+  
+  // Last type gets remaining percent
+  const lastType = types[types.length - 1];
+  composition[lastType] = {
+    percent: remainingPercent,
+    weight: `${(remainingPercent * 24).toFixed(0)}kg`,
+    type: lastType === 'electronic' ? 'Electronics' : 'Compost',
+    recyclable: lastType !== 'organic'
+  };
+  
+  return composition;
+}
+
+// ===== QUALITY CHECK =====
+function qualityCheck() {
+  const qualityScore = Math.floor(Math.random() * 30) + 70; // 70-100%
+  const issues = qualityScore > 85 ? "No major issues" :
+                 qualityScore > 75 ? "Minor contamination found" :
+                 "Significant contamination - needs re-sorting";
+  
+  alert(`🔍 Quality Check Results:\n\nScore: ${qualityScore}%\nIssues: ${issues}\n\nRecommendation: ${qualityScore > 80 ? "✅ Pass - Ready for processing" : "⚠️ Needs attention"}`);
+}
+
+// ===== GENERATE REPORT =====
+function generateReport() {
+  const totalWeight = factoryTrucks.reduce((sum, truck) => {
+    return sum + parseFloat(truck.weight);
+  }, 0);
+  
+  const recyclablePercent = 72 + Math.floor(Math.random() * 10);
+  const nonRecyclablePercent = 100 - recyclablePercent;
+  
+  const report = `
+    📊 ECOFACTORY DAILY REPORT
+    ===========================
+    Date: ${new Date().toLocaleDateString()}
+    Time: ${new Date().toLocaleTimeString()}
+    
+    📦 PROCESSING SUMMARY
+    • Trucks processed today: ${factoryTrucks.length}
+    • Total waste processed: ${totalWeight.toFixed(1)} tons
+    • Average processing rate: 4.2 tons/hour
+    
+    ♻️ RECYCLING EFFICIENCY
+    • Recyclable material: ${recyclablePercent}%
+    • Non-recyclable: ${nonRecyclablePercent}%
+    • Sorting accuracy: ${85 + Math.floor(Math.random() * 10)}%
+    
+    🚛 TRUCK STATUS
+    ${factoryTrucks.map(t => `  • ${t.id}: ${t.status} (${t.weight})`).join('\n')}
+    
+    ✅ RECOMMENDATIONS
+    • Increase plastic separation efficiency
+    • Schedule maintenance for conveyor belts
+    • Order new bins for electronic waste
+  `;
+  
+  alert("Report Generated!\n\n" + report);
+  
+  // Update charts
+  document.getElementById('recyclablePercent').textContent = `${recyclablePercent}%`;
+  document.getElementById('nonRecyclablePercent').textContent = `${nonRecyclablePercent}%`;
+  
+  if (wasteChart) {
+    wasteChart.destroy();
+  }
+  initWasteChart();
+}
+
+// ===== DISPATCH TRUCK =====
+function dispatchTruck() {
+  const availableTrucks = factoryTrucks.filter(t => t.status === "arrived" || t.status === "completed");
+  
+  if (availableTrucks.length === 0) {
+    alert("No empty trucks available for dispatch!");
+    return;
+  }
+  
+  const truck = availableTrucks[0];
+  truck.status = "dispatched";
+  truck.location = "Returning to collection route";
+  
+  loadTruckList();
+  
+  showNotification(`🚛 Truck ${truck.id} dispatched back to collection route`);
+}
+
+// ===== BEGIN PROCESSING =====
+function beginProcessing() {
+  closeModal();
+  startUnloading();
+  setTimeout(startSorting, 2000);
+}
+
+// ===== CLOSE COMPLETE NOTIFICATION =====
+function closeComplete() {
+  document.getElementById('processComplete').classList.remove('show');
+}
+
+// ===== INSPECT BIN =====
+function inspectBin(bin) {
+  const binData = factoryTrucks[0].composition[bin.id];
+  
+  if (binData) {
+    alert(`🔍 ${bin.name} Bin Inspection\n\nWeight: ${binData.weight}\nType: ${binData.type}\nRecyclable: ${binData.recyclable ? 'Yes ♻️' : 'No ⚠️'}\n\nProcessing: ${binData.recyclable ? 'Route to recycling' : 'Send to landfill/energy recovery'}`);
+  } else {
+    alert(`🔍 ${bin.name} Bin Inspection\n\nNo data available for current truck.`);
+  }
+}
+
+// ===== TOGGLE SHIFT =====
+function toggleShift() {
+  const statusBadge = document.querySelector('.status-badge');
+  const currentStatus = statusBadge.textContent.includes('Operational') ? 'Maintenance' : 'Operational';
+  const statusColor = currentStatus === 'Operational' ? '#10b981' : '#f59e0b';
+  
+  statusBadge.innerHTML = `<i class="fas fa-circle" style="font-size:8px;color:${statusColor}"></i> ${currentStatus}`;
+  
+  if (currentStatus === 'Maintenance') {
+    stopUnloading();
+    isProcessing = false;
+    alert("⚠️ Maintenance Mode Activated\nAll processing has been paused.");
+  } else {
+    alert("✅ Operational Mode Activated\nFactory is ready for processing.");
+  }
+}
+
+// ===== SHOW NOTIFICATION =====
+function showNotification(message) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 100px;
+    right: 30px;
+    background: #022c22;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    border-left: 5px solid #10b981;
+    z-index: 9999;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    animation: slideIn 0.5s ease;
+  `;
+  
+  notification.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <i class="fas fa-info-circle" style="color:#10b981"></i>
+      <span>${message}</span>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.5s ease';
+    setTimeout(() => notification.remove(), 500);
+  }, 3000);
+}
+
+// ===== EARTH BACKGROUND =====
+function initEarthBackground() {
+  const canvas = document.getElementById('earth');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+  
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  
+  // Create earth-like sphere
+  const geometry = new THREE.SphereGeometry(5, 32, 32);
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x1e3a8a,
+    emissive: 0x0a2472,
+    shininess: 100
+  });
+  
+  const earth = new THREE.Mesh(geometry, material);
+  scene.add(earth);
+  
+  // Add lighting
+  const light = new THREE.DirectionalLight(0xffffff, 0.8);
+  light.position.set(5, 3, 5);
+  scene.add(light);
+  
+  const ambientLight = new THREE.AmbientLight(0x404040);
+  scene.add(ambientLight);
+  
+  camera.position.z = 10;
+  
+  // Animation
+  function animate() {
+    requestAnimationFrame(animate);
+    earth.rotation.y += 0.002;
+    renderer.render(scene, camera);
+  }
+  
+  animate();
+  
+  // Handle resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+// ===== INITIALIZE =====
+window.onload = function() {
+  initEarthBackground();
+  initWasteChart();
+  loadTruckList();
+  loadSortingBins();
+  
+  // Add animation styles
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+  
+  console.log("🏭 EcoFactory Interface Loaded");
+  console.log("🚛 Trucks:", factoryTrucks.length);
+  console.log("♻️ Bins:", wasteBins.length);
+};
+</script>
+</body>
+</html>

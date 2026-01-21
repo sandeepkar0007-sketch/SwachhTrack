@@ -1,0 +1,483 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoTracker</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+/* ================= EARTH INTRO ================= */
+#earthIntro{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:radial-gradient(circle,#0f5132,#021f14);
+}
+#introText{
+  position:absolute;
+  bottom:30px;
+  width:100%;
+  text-align:center;
+  color:#e9f7ef;
+  letter-spacing:1px;
+  font-family:Montserrat;
+}
+
+/* ================= HOME PAGE ================= */
+#homePage{display:none;}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Montserrat',sans-serif;
+  color:#eaffea;
+  background:#000;
+  overflow-x:hidden;
+}
+
+/* Home page canvas */
+#earthBG{
+  position:fixed;
+  inset:0;
+  z-index:-3;
+}
+
+.overlay{
+  position:fixed;
+  inset:0;
+  background:radial-gradient(circle, rgba(0,0,0,0.35), rgba(0,0,0,0.85));
+  z-index:-2;
+}
+
+/* NAVBAR */
+.navbar{
+  position:sticky;
+  top:0;
+  z-index:1000;
+  padding:18px 60px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:rgba(15,61,46,0.8);
+  backdrop-filter:blur(12px);
+}
+.navbar h1{color:#eaffea;font-size:1.8rem}
+.navbar nav a{
+  margin-left:30px;
+  text-decoration:none;
+  color:#c8facc;
+  font-weight:500;
+  position:relative;
+}
+.navbar nav a::after{
+  content:"";
+  position:absolute;
+  width:0;
+  height:2px;
+  bottom:-6px;
+  left:0;
+  background:#7ae582;
+  transition:.3s;
+}
+.navbar nav a:hover::after{width:100%}
+.navbar nav a.active{color:#7ae582}
+
+/* HERO */
+.hero{
+  min-height:85vh;
+  padding:80px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+.hero h2{
+  font-size:3.5rem;
+  margin-bottom:20px;
+  background:linear-gradient(90deg,#22c55e,#7ae582);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.hero p{
+  font-size:1.3rem;
+  max-width:700px;
+  margin-bottom:40px;
+}
+
+/* BUTTONS */
+.cta-buttons{display:flex;gap:20px}
+.btn{
+  padding:15px 30px;
+  border-radius:50px;
+  font-weight:600;
+  text-decoration:none;
+  transition:.3s;
+}
+.btn-primary{background:#22c55e;color:#022c22}
+.btn-secondary{
+  background:transparent;
+  color:#7ae582;
+  border:2px solid #7ae582;
+}
+.btn:hover{
+  transform:translateY(-5px);
+  box-shadow:0 10px 25px rgba(34,197,94,0.3);
+}
+
+/* STATS */
+.stats{
+  display:flex;
+  justify-content:center;
+  gap:60px;
+  margin:60px 0;
+  flex-wrap:wrap;
+}
+.stat-card{
+  text-align:center;
+  padding:25px;
+  background:rgba(255,255,255,0.05);
+  border-radius:20px;
+  min-width:180px;
+}
+.stat-number{
+  font-size:2.5rem;
+  font-weight:700;
+  color:#22c55e;
+}
+
+/* FEATURES */
+.features{
+  padding:80px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:40px;
+}
+.feature-card{
+  background:rgba(255,255,255,0.08);
+  padding:35px;
+  border-radius:25px;
+  transition:.3s;
+}
+.feature-card:hover{
+  transform:translateY(-10px);
+  box-shadow:0 20px 40px rgba(0,0,0,0.3);
+}
+.feature-card h3{color:#7ae582;margin-bottom:15px}
+
+/* FOOTER */
+footer{
+  padding:40px;
+  text-align:center;
+  background:rgba(15,61,46,0.85);
+  margin-top:80px;
+}
+
+/* SPLINE ROBOT */
+.spline-float{
+  position:fixed;
+  bottom:18px;
+  right:18px;
+  width:130px;
+  height:130px;
+  z-index:999;
+  cursor:pointer;
+}
+spline-viewer{
+  width:100%;
+  height:100%;
+  background:transparent!important;
+}
+
+/* CHATBOT */
+.chatbot{
+  position:fixed;
+  bottom:210px;
+  right:20px;
+  width:280px;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+  transform:scale(0);
+  opacity:0;
+  transition:.4s;
+  z-index:998;
+}
+.chatbot.active{transform:scale(1);opacity:1}
+.chat-header{
+  background:#0f3d2e;
+  color:#eaffea;
+  padding:14px;
+  display:flex;
+  justify-content:space-between;
+  border-radius:18px 18px 0 0;
+}
+.chat-body{padding:15px;height:180px;overflow-y:auto}
+.bot-msg{
+  background:#e6f9ea;
+  padding:12px;
+  border-radius:15px 15px 15px 5px;
+  margin-bottom:8px;
+}
+.user-msg{
+  background:#22c55e;
+  color:#fff;
+  padding:12px;
+  border-radius:15px 15px 5px 15px;
+  margin-bottom:8px;
+  margin-left:auto;
+}
+.chat-input{display:flex;border-top:1px solid #ddd}
+.chat-input input{flex:1;border:none;padding:10px}
+.chat-input button{background:#22c55e;border:none;padding:10px;color:white}
+
+@media(max-width:768px){
+  .navbar{padding:15px 25px;flex-direction:column;gap:15px}
+  .navbar nav{display:flex;flex-wrap:wrap;justify-content:center;gap:15px}
+  .navbar nav a{margin:0}
+  .hero{padding:50px 25px}
+  .hero h2{font-size:2.5rem}
+  .stats{gap:20px}
+  .features{padding:40px 25px}
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= EARTH INTRO ================= -->
+<div id="earthIntro">
+  <div id="introText">Entering the Green Future...</div>
+</div>
+
+<!-- ================= HOME PAGE ================= -->
+<div id="homePage">
+
+<canvas id="earthBG"></canvas>
+<div class="overlay"></div>
+
+<header class="navbar">
+  <h1>SwachhTrack</h1>
+  <nav>
+    <a href="{% url 'index' %}" class="active">Home</a>
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <a href="{% url 'map' %}">Map</a>
+    <a href="{% url 'report' %}">Report</a>
+    <a href="{% url 'analytics' %}">Analytics</a>
+    <a href="{% url 'about' %}">About</a>
+    <a href="{% url 'contact' %}">Contact</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h2>Monitor. Report. Protect.</h2>
+  <p>Track environmental health and take action against pollution.</p>
+  <div class="cta-buttons">
+    <a href="{% url 'dashboard' %}" class="btn btn-primary">Launch Dashboard</a>
+    <a href="{% url 'report' %}" class="btn btn-secondary">Report Issue</a>
+  </div>
+</section>
+
+<div class="stats">
+  <div class="stat-card"><div class="stat-number">12,457</div><p>Trees Protected</p></div>
+  <div class="stat-card"><div class="stat-number">8,921</div><p>Pollution Reports</p></div>
+  <div class="stat-card"><div class="stat-number">1,847</div><p>Community Members</p></div>
+</div>
+
+<section class="features">
+  <div class="feature-card">
+    <h3>🌍 Real-time Monitoring</h3>
+    <p>Live environmental data tracking.</p>
+  </div>
+  <div class="feature-card">
+    <h3>🤖 AI Insights</h3>
+    <p>Predict pollution hotspots.</p>
+  </div>
+  <div class="feature-card">
+    <h3>👥 Community Action</h3>
+    <p>Join clean-up drives.</p>
+  </div>
+</section>
+
+<footer>
+  © 2026 EcoTracker | Together we protect Earth 🌱
+</footer>
+
+<!-- SPLINE ROBOT -->
+<div class="spline-float">
+  <spline-viewer url="https://prod.spline.design/UQEVAplfqnBX3NcV/scene.splinecode"></spline-viewer>
+</div>
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.36/build/spline-viewer.js"></script>
+
+<!-- CHATBOT -->
+<div class="chatbot" id="chatbot">
+  <div class="chat-header">🌱 Eco AI <span onclick="toggleChat()">✖</span></div>
+  <div class="chat-body" id="chat-body">
+    <div class="bot-msg">Welcome to EcoTracker! Ask me about environmental protection.</div>
+  </div>
+  <div class="chat-input">
+    <input id="user-input" placeholder="Ask me anything...">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+</div>
+
+<!-- ================= EARTH INTRO SCRIPT ================= -->
+<script>
+// Earth intro animation
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.z = 4;
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+document.getElementById("earthIntro").appendChild(renderer.domElement);
+
+const loader = new THREE.TextureLoader();
+const texture = loader.load("https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg");
+
+const earth = new THREE.Mesh(
+  new THREE.SphereGeometry(1.5,64,64),
+  new THREE.MeshStandardMaterial({ map:texture })
+);
+scene.add(earth);
+
+const glow = new THREE.Mesh(
+  new THREE.SphereGeometry(1.55,64,64),
+  new THREE.MeshBasicMaterial({color:0x2ecc71,transparent:true,opacity:0.15})
+);
+scene.add(glow);
+
+const light = new THREE.PointLight(0xffffff,1.3);
+light.position.set(5,5,5);
+scene.add(light);
+
+function animate(){
+  requestAnimationFrame(animate);
+  earth.rotation.y += 0.002;
+  glow.rotation.y += 0.002;
+  renderer.render(scene,camera);
+}
+animate();
+
+setTimeout(()=>{
+  const zoom = setInterval(()=>{
+    camera.position.z -= 0.05;
+    if(camera.position.z <= 1.1){
+      clearInterval(zoom);
+      document.getElementById("earthIntro").style.display="none";
+      document.getElementById("homePage").style.display="block";
+      // Start background Earth rotation
+      initBackgroundEarth();
+    }
+  },30);
+},3500);
+
+// ================= BACKGROUND EARTH =================
+function initBackgroundEarth() {
+  const bgScene = new THREE.Scene();
+  const bgCamera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+  const bgRenderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById("earthBG"),
+    alpha: true,
+    antialias: true
+  });
+  bgRenderer.setSize(innerWidth, innerHeight);
+  bgRenderer.setPixelRatio(devicePixelRatio);
+
+  const bgGeometry = new THREE.SphereGeometry(2.8, 32, 32);
+  const bgTexture = new THREE.TextureLoader().load(
+    "https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg"
+  );
+  const bgMaterial = new THREE.MeshStandardMaterial({ map: bgTexture });
+  const bgGlobe = new THREE.Mesh(bgGeometry, bgMaterial);
+  bgScene.add(bgGlobe);
+
+  const bgLight = new THREE.PointLight(0xffffff, 1.5);
+  bgLight.position.set(5, 5, 5);
+  bgScene.add(bgLight);
+
+  bgCamera.position.z = 5.2;
+
+  function bgAnimate() {
+    requestAnimationFrame(bgAnimate);
+    bgGlobe.rotation.y += 0.002;
+    bgRenderer.render(bgScene, bgCamera);
+  }
+  bgAnimate();
+
+  window.addEventListener('resize', () => {
+    bgCamera.aspect = innerWidth / innerHeight;
+    bgCamera.updateProjectionMatrix();
+    bgRenderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+// ================= CHATBOT =================
+function toggleChat(){
+  document.getElementById("chatbot").classList.toggle("active");
+}
+document.querySelector(".spline-float").onclick = toggleChat;
+
+function sendMessage(){
+  const input = document.getElementById("user-input");
+  const chatBody = document.getElementById("chat-body");
+  
+  if(input.value.trim()){
+    const userMsg = document.createElement("div");
+    userMsg.className = "user-msg";
+    userMsg.textContent = input.value;
+    chatBody.appendChild(userMsg);
+    
+    setTimeout(() => {
+      const botMsg = document.createElement("div");
+      botMsg.className = "bot-msg";
+      const responses = [
+        "Welcome to EcoTracker! I can help you learn about environmental protection.",
+        "Our platform helps track pollution and organize community cleanups.",
+        "You can report environmental issues through our reporting system.",
+        "Check the dashboard for real-time environmental data in your area.",
+        "Join our community events to make a direct impact on the environment."
+      ];
+      botMsg.textContent = responses[Math.floor(Math.random() * responses.length)];
+      chatBody.appendChild(botMsg);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }, 600);
+    
+    input.value = "";
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+}
+
+// ================= ANIMATE STATS =================
+function animateStats() {
+  const stats = document.querySelectorAll('.stat-number');
+  const targets = [12457, 8921, 1847];
+  
+  stats.forEach((stat, index) => {
+    let start = 0;
+    const target = targets[index];
+    const increment = target / 50;
+    const timer = setInterval(() => {
+      start += increment;
+      if(start >= target) {
+        stat.textContent = target.toLocaleString();
+        clearInterval(timer);
+      } else {
+        stat.textContent = Math.floor(start).toLocaleString();
+      }
+    }, 30);
+  });
+}
+
+// Start stats animation when page loads
+setTimeout(animateStats, 1000);
+</script>
+
+</body>
+</html>

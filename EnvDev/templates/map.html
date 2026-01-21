@@ -1,0 +1,643 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Map | EcoTracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body,html{height:100%;font-family:'Montserrat',sans-serif;color:#eaffea;background:#000}
+canvas{position:fixed;inset:0;z-index:-3}
+.overlay{position:fixed;inset:0;background:radial-gradient(circle, rgba(0,0,0,0.35), rgba(0,0,0,0.85));z-index:-2}
+
+/* NAVBAR - Same as other pages */
+.navbar{
+  position:sticky;top:0;z-index:1000;padding:18px 60px;
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(15,61,46,0.9);backdrop-filter:blur(12px);
+}
+.navbar h1{color:#eaffea;font-size:1.8rem}
+.navbar nav a{
+  margin-left:30px;text-decoration:none;color:#c8facc;
+  font-weight:500;position:relative;
+}
+.navbar nav a::after{
+  content:"";position:absolute;width:0;height:2px;
+  bottom:-6px;left:0;background:#7ae582;transition:.3s;
+}
+.navbar nav a:hover::after{width:100%}
+.navbar nav a.active{color:#7ae582}
+
+/* Fullscreen Map */
+#fullscreen-map{
+  position:fixed;top:78px;left:0;right:0;bottom:0;
+  z-index:1;
+}
+
+/* Floating Control Panel */
+.map-control-panel{
+  position:fixed;top:100px;left:25px;z-index:1000;
+  background:rgba(0,0,0,0.85);border-radius:20px;
+  padding:25px;width:350px;backdrop-filter:blur(15px);
+  border:1px solid rgba(122,229,130,0.3);
+  box-shadow:0 10px 40px rgba(0,0,0,0.5);
+}
+.panel-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:25px;
+}
+.panel-header h2{color:#7ae582;font-size:1.4rem}
+.close-panel{
+  background:none;border:none;color:#c8facc;
+  font-size:1.2rem;cursor:pointer;
+}
+
+/* Layer Controls */
+.layer-controls{margin-bottom:25px}
+.layer-controls h3{color:#c8facc;margin-bottom:15px;font-size:1rem}
+.layer-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+.layer-btn{
+  padding:12px;background:rgba(255,255,255,0.08);
+  border-radius:12px;display:flex;align-items:center;
+  gap:10px;cursor:pointer;transition:.2s;
+  border:2px solid transparent;
+}
+.layer-btn.active{
+  background:rgba(34,197,94,0.2);border-color:#22c55e;
+}
+.layer-btn:hover{background:rgba(255,255,255,0.12)}
+.layer-color{
+  width:20px;height:20px;border-radius:50%;
+}
+.color-pollution{background:#dc3545}
+.color-air{background:#22c55e}
+.color-water{background:#2196f3}
+.color-waste{background:#795548}
+.color-green{background:#4caf50}
+.color-noise{background:#9c27b0}
+
+/* Map Stats */
+.map-stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:15px;
+  margin:25px 0;
+}
+.map-stat{
+  background:rgba(255,255,255,0.08);padding:15px;
+  border-radius:12px;text-align:center;
+}
+.map-stat-value{
+  font-size:1.8rem;font-weight:700;color:#7ae582;
+  margin-bottom:5px;
+}
+.map-stat-label{
+  font-size:0.8rem;color:#c8facc;
+}
+
+/* Time Filter */
+.time-filter{margin:20px 0}
+.time-filter h3{color:#c8facc;margin-bottom:10px;font-size:1rem}
+.time-slider{width:100%;margin:10px 0;accent-color:#22c55e}
+.time-labels{
+  display:flex;justify-content:space-between;
+  font-size:0.8rem;color:#c8facc;
+}
+
+/* Search Box */
+.map-search-container{
+  position:fixed;top:100px;right:25px;z-index:1000;
+  background:rgba(0,0,0,0.85);border-radius:15px;
+  padding:15px;width:300px;backdrop-filter:blur(15px);
+  border:1px solid rgba(122,229,130,0.3);
+}
+.search-box{
+  display:flex;gap:10px;
+}
+.search-input{
+  flex:1;padding:12px;background:rgba(255,255,255,0.1);
+  border:none;border-radius:10px;color:#fff;
+  font-family:inherit;
+}
+.search-input::placeholder{color:#c8facc}
+.search-btn{
+  background:#22c55e;color:#022c22;border:none;
+  padding:12px 20px;border-radius:10px;cursor:pointer;
+  font-weight:600;
+}
+
+/* Legend */
+.map-legend{
+  position:fixed;bottom:160px;left:25px;z-index:1000;
+  background:rgba(0,0,0,0.85);border-radius:15px;
+  padding:20px;width:250px;backdrop-filter:blur(15px);
+  border:1px solid rgba(122,229,130,0.3);
+}
+.legend-title{
+  color:#7ae582;margin-bottom:15px;font-size:1rem;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.legend-items{
+  display:flex;flex-direction:column;gap:10px;
+}
+.legend-item{
+  display:flex;align-items:center;gap:12px;
+}
+.legend-color{width:15px;height:15px;border-radius:50%}
+
+/* Detail Panel */
+.detail-panel{
+  position:fixed;bottom:160px;right:25px;z-index:1000;
+  background:rgba(0,0,0,0.9);border-radius:20px;
+  padding:25px;width:400px;backdrop-filter:blur(15px);
+  border:1px solid rgba(122,229,130,0.3);
+  display:none;
+}
+.detail-header{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:20px;
+}
+.detail-header h3{color:#7ae582;margin:0}
+.close-detail{
+  background:none;border:none;color:#c8facc;
+  font-size:1.2rem;cursor:pointer;
+}
+.detail-content{padding:15px 0}
+.detail-row{
+  display:flex;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1);
+}
+.detail-label{color:#c8facc}
+.detail-value{color:#7ae582;font-weight:500}
+.severity-high{color:#dc3545}
+.severity-medium{color:#ffc107}
+.severity-low{color:#22c55e}
+
+/* SPLINE ROBOT - Fixed to bottom right corner */
+.spline-float{
+  position:fixed;bottom:18px;right:18px;width:130px;height:130px;
+  z-index:1001;cursor:pointer;
+}
+
+/* CHATBOT - Positioned above robot */
+.chatbot{
+  position:fixed;bottom:210px;right:20px;width:280px;
+  background:#fff;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.4);
+  transform:scale(0);opacity:0;transition:.4s;z-index:1000;
+}
+.chatbot.active{transform:scale(1);opacity:1}
+.chat-header{
+  background:#0f3d2e;color:#eaffea;padding:14px;
+  display:flex;justify-content:space-between;
+  border-radius:18px 18px 0 0;
+}
+.chat-body{padding:15px;height:180px;overflow-y:auto}
+.bot-msg{background:#e6f9ea;padding:12px;border-radius:15px 15px 15px 5px;margin-bottom:8px}
+.user-msg{
+  background:#22c55e;color:#fff;padding:12px;
+  border-radius:15px 15px 5px 15px;margin-bottom:8px;margin-left:auto;
+}
+.chat-input{display:flex;border-top:1px solid #ddd}
+.chat-input input{flex:1;border:none;padding:10px}
+.chat-input button{background:#22c55e;border:none;padding:10px;color:white}
+
+/* Responsive */
+@media(max-width:1200px){
+  .map-control-panel,.map-search-container{width:300px}
+  .detail-panel{width:350px}
+}
+@media(max-width:768px){
+  .navbar{padding:15px 25px;flex-direction:column;gap:15px}
+  .navbar nav{display:flex;flex-wrap:wrap;justify-content:center;gap:15px}
+  .navbar nav a{margin:0}
+  #fullscreen-map{top:120px}
+  .map-control-panel,.map-search-container,.detail-panel{
+    position:relative;width:calc(100% - 40px);margin:10px 20px;
+    top:130px;left:0;right:0;
+  }
+  .map-legend{bottom:180px}
+  .spline-float{bottom:10px;right:10px;width:100px;height:100px}
+  .chatbot{bottom:150px;right:10px;width:250px}
+}
+</style>
+</head>
+<body>
+<canvas id="earth"></canvas>
+<div class="overlay"></div>
+
+<!-- NAVBAR - Same as other pages -->
+<header class="navbar">
+  <h1>SwachhTrack</h1>
+  <nav>
+    <a href="{% url 'index' %}">Home</a>
+    <a href="{% url 'dashboard' %}">Dashboard</a>
+    <a href="{% url 'map' %}" class="active">Map</a>
+    <a href="{% url 'report' %}">Report</a>
+    <a href="{% url 'analytics' %}">Analytics</a>
+    <a href="{% url 'about' %} ">About</a>
+    <a href="{% url 'contact' %}">Contact</a>
+  </nav>
+</header>
+
+<div id="fullscreen-map"></div>
+
+<!-- Floating Control Panel -->
+<div class="map-control-panel" id="controlPanel">
+  <div class="panel-header">
+    <h2>Map Controls</h2>
+    <button class="close-panel" onclick="togglePanel()">×</button>
+  </div>
+  
+  <div class="layer-controls">
+    <h3>Active Layers</h3>
+    <div class="layer-grid">
+      <div class="layer-btn active" data-layer="pollution">
+        <div class="layer-color color-pollution"></div>
+        <span>Pollution Heatmap</span>
+      </div>
+      <div class="layer-btn active" data-layer="air">
+        <div class="layer-color color-air"></div>
+        <span>Air Quality</span>
+      </div>
+      <div class="layer-btn" data-layer="water">
+        <div class="layer-color color-water"></div>
+        <span>Water Quality</span>
+      </div>
+      <div class="layer-btn" data-layer="waste">
+        <div class="layer-color color-waste"></div>
+        <span>Illegal Dumping</span>
+      </div>
+      <div class="layer-btn" data-layer="green">
+        <div class="layer-color color-green"></div>
+        <span>Green Areas</span>
+      </div>
+      <div class="layer-btn" data-layer="noise">
+        <div class="layer-color color-noise"></div>
+        <span>Noise Pollution</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-stats-grid">
+    <div class="map-stat">
+      <div class="map-stat-value" id="liveReports">247</div>
+      <div class="map-stat-label">Live Reports</div>
+    </div>
+    <div class="map-stat">
+      <div class="map-stat-value" id="activeUsers">156</div>
+      <div class="map-stat-label">Active Users</div>
+    </div>
+    <div class="map-stat">
+      <div class="map-stat-value" id="responseTime">1.8h</div>
+      <div class="map-stat-label">Avg Response</div>
+    </div>
+    <div class="map-stat">
+      <div class="map-stat-value" id="coverage">78%</div>
+      <div class="map-stat-label">Area Coverage</div>
+    </div>
+  </div>
+
+  <div class="time-filter">
+    <h3>Time Range</h3>
+    <input type="range" min="1" max="24" value="6" class="time-slider" id="timeRange">
+    <div class="time-labels">
+      <span>Last hour</span>
+      <span style="color:#7ae582">Last 6 hours</span>
+      <span>Last 24h</span>
+    </div>
+  </div>
+
+  <button class="search-btn" style="width:100%;margin-top:15px" onclick="location.href='report.html'">
+    + Report New Issue
+  </button>
+</div>
+
+<!-- Search Box -->
+<div class="map-search-container">
+  <div class="search-box">
+    <input type="text" class="search-input" placeholder="Search location or address...">
+    <button class="search-btn" onclick="searchLocation()">🔍</button>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="map-legend">
+  <div class="legend-title">
+    <span>Map Legend</span>
+    <button style="background:none;border:none;color:#c8facc;cursor:pointer">i</button>
+  </div>
+  <div class="legend-items">
+    <div class="legend-item">
+      <div class="legend-color color-pollution"></div>
+      <span>High Pollution Area</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color color-air"></div>
+      <span>Air Quality Sensor</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color color-water"></div>
+      <span>Water Testing Site</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color color-green"></div>
+      <span>Protected Green Zone</span>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <h3>Location Details</h3>
+    <button class="close-detail" onclick="closeDetail()">×</button>
+  </div>
+  <div class="detail-content" id="detailContent">
+    <!-- Dynamic content will be inserted here -->
+  </div>
+</div>
+
+<!-- SPLINE ROBOT - Bottom Right Corner -->
+<div class="spline-float">
+  <spline-viewer url="https://prod.spline.design/UQEVAplfqnBX3NcV/scene.splinecode"></spline-viewer>
+</div>
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.12.36/build/spline-viewer.js"></script>
+
+<!-- CHATBOT - Above Robot -->
+<div class="chatbot" id="chatbot">
+  <div class="chat-header">🗺️ Map Assistant <span onclick="toggleChat()">✖</span></div>
+  <div class="chat-body" id="chat-body">
+    <div class="bot-msg">Click anywhere on the map to see details. The heatmap shows pollution intensity - red areas need immediate attention!</div>
+  </div>
+  <div class="chat-input">
+    <input id="user-input" placeholder="Ask about map data...">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+// Initialize Map
+const map = L.map('fullscreen-map').setView([28.6139, 77.2090], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Add base layers
+const baseLayers = {
+  "Street Map": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+};
+
+baseLayers["Street Map"].addTo(map);
+
+// Create marker cluster group
+const markers = L.markerClusterGroup();
+
+// Generate sample pollution data
+const generateHeatmapData = () => {
+  const data = [];
+  const centerLat = 28.6139;
+  const centerLng = 77.2090;
+  
+  // Generate 50 random points around center
+  for(let i = 0; i < 50; i++) {
+    const lat = centerLat + (Math.random() - 0.5) * 0.1;
+    const lng = centerLng + (Math.random() - 0.5) * 0.1;
+    const intensity = Math.random() * 0.8 + 0.2; // 0.2 to 1.0
+    data.push([lat, lng, intensity]);
+  }
+  return data;
+};
+
+// Add heatmap layer
+const heatmapData = generateHeatmapData();
+const heatLayer = L.heatLayer(heatmapData, {
+  radius: 25,
+  blur: 15,
+  maxZoom: 17,
+  gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+}).addTo(map);
+
+// Add markers for specific incidents
+const incidents = [
+  {lat: 28.6139, lng: 77.2090, type: 'air', severity: 'high', title: 'Industrial Emission', desc: 'Factory smoke exceeding limits'},
+  {lat: 28.62, lng: 77.20, type: 'water', severity: 'high', title: 'Chemical Spill', desc: 'Industrial waste in river'},
+  {lat: 28.605, lng: 77.205, type: 'waste', severity: 'medium', title: 'Illegal Dumping', desc: 'Construction debris'},
+  {lat: 28.61, lng: 77.215, type: 'air', severity: 'low', title: 'Traffic Pollution', desc: 'High vehicle emissions'},
+  {lat: 28.625, lng: 77.19, type: 'water', severity: 'medium', title: 'Sewage Leak', desc: 'Municipal sewage overflow'},
+];
+
+incidents.forEach(incident => {
+  const color = incident.severity === 'high' ? '#dc3545' : 
+                incident.severity === 'medium' ? '#ffc107' : '#22c55e';
+  
+  const marker = L.circleMarker([incident.lat, incident.lng], {
+    radius: 10,
+    fillColor: color,
+    color: '#fff',
+    weight: 2,
+    fillOpacity: 0.8
+  }).addTo(map);
+  
+  marker.bindPopup(`
+    <strong>${incident.title}</strong><br>
+    <span style="color:${color}">● ${incident.severity.toUpperCase()} severity</span><br>
+    ${incident.desc}<br>
+    <button onclick="showDetail(${JSON.stringify(incident).replace(/"/g, '&quot;')})" 
+            style="background:#22c55e;color:white;border:none;padding:5px 10px;border-radius:5px;margin-top:5px;cursor:pointer">
+      View Details
+    </button>
+  `);
+  
+  markers.addLayer(marker);
+});
+
+// Layer control functionality
+document.querySelectorAll('.layer-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    this.classList.toggle('active');
+    const layer = this.dataset.layer;
+    
+    if(layer === 'pollution') {
+      if(this.classList.contains('active')) {
+        map.addLayer(heatLayer);
+      } else {
+        map.removeLayer(heatLayer);
+      }
+    }
+    
+    // Update stats
+    updateStats();
+  });
+});
+
+// Time slider
+document.getElementById('timeRange').addEventListener('input', function(e) {
+  const hours = e.target.value;
+  document.querySelector('.time-labels span:nth-child(2)').textContent = `Last ${hours} hours`;
+  
+  // Update heatmap data based on time range
+  heatLayer.setLatLngs(generateHeatmapData());
+  updateStats();
+});
+
+// Search function
+function searchLocation() {
+  const input = document.querySelector('.search-input');
+  if(input.value) {
+    alert(`Searching for: "${input.value}"\nIn a real app, this would geocode and zoom to location.`);
+    // Here you would use a geocoding service like Nominatim
+  }
+}
+
+// Detail panel functions
+function showDetail(data) {
+  const panel = document.getElementById('detailPanel');
+  const content = document.getElementById('detailContent');
+  
+  content.innerHTML = `
+    <div class="detail-row">
+      <span class="detail-label">Type:</span>
+      <span class="detail-value" style="text-transform:uppercase">${data.type}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Severity:</span>
+      <span class="detail-value severity-${data.severity}">${data.severity.toUpperCase()}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Title:</span>
+      <span class="detail-value">${data.title}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Description:</span>
+      <span class="detail-value">${data.desc}</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Reported:</span>
+      <span class="detail-value">${Math.floor(Math.random()*24)+1} hours ago</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Confirmations:</span>
+      <span class="detail-value">${Math.floor(Math.random()*15)+5} users</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-label">Status:</span>
+      <span class="detail-value" style="color:#22c55e">Under Investigation</span>
+    </div>
+    <button style="width:100%;margin-top:20px;padding:12px;background:#22c55e;color:#022c22;border:none;border-radius:10px;font-weight:600;cursor:pointer">
+      Confirm This Report
+    </button>
+  `;
+  
+  panel.style.display = 'block';
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').style.display = 'none';
+}
+
+// Update stats function
+function updateStats() {
+  const activeLayers = document.querySelectorAll('.layer-btn.active').length;
+  const reports = Math.floor(Math.random() * 100) + 200;
+  const users = Math.floor(Math.random() * 50) + 150;
+  
+  document.getElementById('liveReports').textContent = reports;
+  document.getElementById('activeUsers').textContent = users;
+  document.getElementById('responseTime').textContent = (Math.random() + 1.5).toFixed(1) + 'h';
+  document.getElementById('coverage').textContent = Math.floor(Math.random() * 20) + 70 + '%';
+}
+
+// Toggle control panel
+function togglePanel() {
+  const panel = document.getElementById('controlPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// Initialize stats
+updateStats();
+
+// Chatbot
+function toggleChat(){
+  document.getElementById("chatbot").classList.toggle("active");
+}
+document.querySelector(".spline-float").onclick = toggleChat;
+
+function sendMessage(){
+  const input = document.getElementById("user-input");
+  const chatBody = document.getElementById("chat-body");
+  
+  if(input.value.trim()){
+    const userMsg = document.createElement("div");
+    userMsg.className = "user-msg";
+    userMsg.textContent = input.value;
+    chatBody.appendChild(userMsg);
+    
+    setTimeout(() => {
+      const botMsg = document.createElement("div");
+      botMsg.className = "bot-msg";
+      const responses = [
+        "The red heatmap areas show pollution hotspots. Industrial zone has the highest concentration.",
+        "Click on any marker to see detailed information about that pollution incident.",
+        "You can toggle different layers using the control panel on the left.",
+        "The time slider lets you see how pollution patterns change throughout the day.",
+        "Green areas on the map are protected zones with good environmental scores."
+      ];
+      botMsg.textContent = responses[Math.floor(Math.random() * responses.length)];
+      chatBody.appendChild(botMsg);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }, 600);
+    
+    input.value = "";
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+}
+
+// Three.js Earth
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById("earth"),
+  alpha: true,
+  antialias: true
+});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+
+const geometry = new THREE.SphereGeometry(2.8, 32, 32);
+const texture = new THREE.TextureLoader().load(
+  "https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg"
+);
+const material = new THREE.MeshStandardMaterial({ map: texture });
+const globe = new THREE.Mesh(geometry, material);
+scene.add(globe);
+
+const light = new THREE.PointLight(0xffffff, 1.5);
+light.position.set(5, 5, 5);
+scene.add(light);
+
+camera.position.z = 5.2;
+
+function animate() {
+  requestAnimationFrame(animate);
+  globe.rotation.y += 0.002;
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

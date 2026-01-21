@@ -1,0 +1,287 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SwachhTrack | Unified Municipality Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+    font-family:'Poppins',sans-serif;
+    background:#000;
+    color:#ecfdf5;
+    overflow-x:hidden;
+}
+
+/* 3D EARTH */
+#earth{
+    position:fixed;
+    inset:0;
+    z-index:-2;
+}
+.overlay{
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle,rgba(0,0,0,0.35),rgba(0,0,0,0.9));
+    z-index:-1;
+}
+
+/* NAVBAR */
+nav{
+    position:fixed;
+    top:0;
+    width:100%;
+    padding:16px 32px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(2,6,23,0.75);
+    backdrop-filter:blur(14px);
+    z-index:10;
+}
+nav h1 span{color:#22c55e}
+nav a{
+    margin-left:20px;
+    text-decoration:none;
+    color:#ecfdf5;
+    font-size:0.9rem;
+}
+nav a:hover{color:#22c55e}
+
+/* CONTAINER */
+.container{
+    max-width:1400px;
+    margin:120px auto 40px;
+    padding:20px;
+}
+
+/* GRID */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:24px;
+}
+
+/* CARD */
+.card{
+    background:rgba(255,255,255,0.1);
+    backdrop-filter:blur(18px);
+    border-radius:22px;
+    padding:24px;
+    box-shadow:0 20px 55px rgba(0,0,0,0.7);
+}
+.card h3{
+    margin-bottom:14px;
+    font-size:1.1rem;
+    text-align:center;
+}
+
+/* STATS */
+.stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:18px;
+    margin-bottom:20px;
+}
+.stat{
+    text-align:center;
+}
+.stat p{
+    font-size:1.7rem;
+    font-weight:700;
+    color:#22c55e;
+}
+
+/* ALERTS */
+.alert{
+    background:#7f1d1d;
+    border-left:5px solid #ef4444;
+    padding:14px;
+    border-radius:10px;
+    margin-bottom:10px;
+    font-size:0.9rem;
+}
+
+/* TABLE */
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
+    font-size:0.85rem;
+}
+th,td{
+    padding:10px;
+    border-bottom:1px solid rgba(255,255,255,0.2);
+    text-align:left;
+}
+th{color:#22c55e}
+
+/* STATUS */
+.status-full{color:#ef4444;font-weight:600}
+.status-half{color:#facc15;font-weight:600}
+.status-empty{color:#22c55e;font-weight:600}
+.status-active{color:#22c55e;font-weight:600}
+.status-inactive{color:#facc15;font-weight:600}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+    .container{margin-top:150px}
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="earth"></canvas>
+<div class="overlay"></div>
+
+<nav>
+    <h1>Swachh<span>Track</span></h1>
+    <div>
+        <a href="{% url 'municipalitypage' %}">Dashboard</a>
+        <a href="{% url 'bins' %}">Bins</a>
+        <a href="{% url 'collection' %}">Collection</a>
+    </div>
+</nav>
+
+<div class="container">
+
+<!-- CITY OVERVIEW -->
+<div class="card">
+    <h3>🏙️ City Waste Overview</h3>
+    <div class="stats">
+        <div class="stat"><p>1,250</p>Total Bins</div>
+        <div class="stat"><p>1,180</p>Active Sensors</div>
+        <div class="stat"><p>38 Tons</p>Today</div>
+        <div class="stat"><p>220 Tons</p>This Week</div>
+        <div class="stat"><p>87%</p>Segregation</div>
+    </div>
+    <canvas id="overviewChart"></canvas>
+</div>
+
+<br>
+
+<div class="grid">
+
+<!-- ALERTS -->
+<div class="card">
+    <h3>🚨 Overflow Alerts</h3>
+    <div class="alert">📍 SW-234 | Market Road | FULL</div>
+    <div class="alert">📍 SW-981 | Bus Stand | OVERFLOW RISK</div>
+</div>
+
+<!-- BIN STATUS -->
+<div class="card">
+    <h3>🗑️ Smart Bin & Sensor Monitoring</h3>
+    <table>
+        <tr><th>ID</th><th>Location</th><th>Fill</th><th>Status</th></tr>
+        <tr><td>SW-101</td><td>Main Street</td><td>20%</td><td class="status-active">Active</td></tr>
+        <tr><td>SW-234</td><td>Market Road</td><td>95%</td><td class="status-full">Full</td></tr>
+        <tr><td>SW-410</td><td>Block B</td><td>50%</td><td class="status-half">Half</td></tr>
+    </table>
+</div>
+
+<!-- COLLECTION -->
+<div class="card">
+    <h3>🚛 Waste Collection Management</h3>
+    <table>
+        <tr><th>Bin</th><th>Priority</th><th>Truck</th><th>Status</th></tr>
+        <tr><td>SW-234</td><td class="status-full">High</td><td>Truck 12</td><td class="status-active">Pending</td></tr>
+        <tr><td>SW-101</td><td class="status-empty">Low</td><td>Truck 03</td><td class="status-active">Completed</td></tr>
+    </table>
+</div>
+
+<!-- RECYCLING -->
+<div class="card">
+    <h3>♻️ Recycling Centers</h3>
+    <table>
+        <tr><th>ID</th><th>Location</th><th>Status</th></tr>
+        <tr><td>RC-101</td><td>North Zone</td><td class="status-active">Processing</td></tr>
+        <tr><td>RC-315</td><td>East Unit</td><td class="status-inactive">Pending</td></tr>
+    </table>
+</div>
+
+<!-- CHARTS -->
+<div class="card">
+    <h3>📊 Live Bin Fill Levels</h3>
+    <canvas id="fillChart"></canvas>
+</div>
+
+<div class="card">
+    <h3>♻️ Waste Collection Trend</h3>
+    <canvas id="wasteChart"></canvas>
+</div>
+
+</div>
+</div>
+
+<script>
+/* 3D EARTH */
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+const renderer=new THREE.WebGLRenderer({canvas:earth,alpha:true});
+renderer.setSize(innerWidth,innerHeight);
+
+const globe=new THREE.Mesh(
+    new THREE.SphereGeometry(3,32,32),
+    new THREE.MeshStandardMaterial({
+        map:new THREE.TextureLoader().load("https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg")
+    })
+);
+scene.add(globe);
+
+const light=new THREE.PointLight(0xffffff,1.5);
+light.position.set(5,5,5);
+scene.add(light);
+camera.position.z=6;
+
+(function animate(){
+    requestAnimationFrame(animate);
+    globe.rotation.y+=0.0015;
+    renderer.render(scene,camera);
+})();
+
+/* CHARTS */
+new Chart(overviewChart,{
+    type:"bar",
+    data:{
+        labels:["Bins","Active","Today","Week"],
+        datasets:[{data:[1250,1180,38,220],backgroundColor:"#22c55e"}]
+    },
+    options:{plugins:{legend:{display:false}}}
+});
+
+new Chart(fillChart,{
+    type:"pie",
+    data:{
+        labels:["Empty","Half","Full"],
+        datasets:[{data:[45,35,20],backgroundColor:["#22c55e","#facc15","#ef4444"]}]
+    }
+});
+
+new Chart(wasteChart,{
+    type:"line",
+    data:{
+        labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+        datasets:[{
+            label:"Waste (Tons)",
+            data:[28,30,27,32,35,40,38],
+            borderColor:"#22c55e",
+            fill:false
+        }]
+    }
+});
+</script>
+
+</body>
+</html>

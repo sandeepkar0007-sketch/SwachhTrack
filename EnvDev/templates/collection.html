@@ -1,0 +1,296 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SwachhTrack | Municipality </title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+    font-family:'Poppins',sans-serif;
+    background:#000;
+    color:#ecfdf5;
+    overflow-x:hidden;
+}
+
+/* 3D Earth */
+canvas#earth{
+    position:fixed;
+    inset:0;
+    z-index:-2;
+}
+
+/* Overlay */
+.overlay{
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle,rgba(0,0,0,0.35),rgba(0,0,0,0.9));
+    z-index:-1;
+}
+
+/* Navbar */
+nav{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    padding:15px 30px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(14px);
+    z-index:10;
+}
+
+nav h1 span{color:#22c55e}
+nav a{
+    margin-left:22px;
+    text-decoration:none;
+    color:#ecfdf5;
+    font-size:0.9rem;
+}
+nav a:hover{color:#22c55e}
+
+/* Container */
+.container{
+    max-width:1300px;
+    margin:120px auto 40px;
+    padding:20px;
+}
+
+/* Grid */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:24px;
+}
+
+/* Card */
+.card{
+    background:rgba(255,255,255,0.13);
+    backdrop-filter:blur(18px);
+    border-radius:26px;
+    padding:24px;
+    box-shadow:0 20px 55px rgba(0,0,0,0.7);
+}
+
+.card h3{
+    margin-bottom:15px;
+    font-size:1.1rem;
+    text-align:center;
+}
+
+/* Tables */
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
+    font-size:0.85rem;
+    color:#ecfdf5;
+}
+th, td{
+    padding:8px 10px;
+    border-bottom:1px solid rgba(255,255,255,0.2);
+    text-align:left;
+}
+th{
+    color:#22c55e;
+}
+
+/* Status Colors */
+.status-active{color:#22c55e;font-weight:600}
+.status-inactive{color:#facc15;font-weight:600}
+.status-full{color:#ef4444;font-weight:600}
+.status-half{color:#facc15;font-weight:600}
+.status-empty{color:#22c55e}
+
+/* Cards full width in table sections */
+.card p{margin-top:12px;line-height:1.6;font-size:0.9rem;color:#e5f9ef}
+
+/* Responsive */
+@media(max-width:768px){
+    .container{margin-top:140px}
+    .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<canvas id="earth"></canvas>
+<div class="overlay"></div>
+
+<!-- NAVBAR -->
+<nav>
+    <h1>Swachh<span>Track</span></h1>
+    <div>
+        <a href="{% url 'municipalitypage' %}">Dashboard</a>
+        <a href="{% url 'bins' %}">Bins</a>
+        <a href="{% url 'collection' %}">Collection</a>
+    </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="container">
+    <div class="grid">
+
+        <!-- CITY WASTE OVERVIEW -->
+        <div class="card">
+            <h3>🏙️ City Waste Overview</h3>
+            <table>
+                <tr><td>Total Smart Bins Installed</td><td>1,250</td></tr>
+                <tr><td>Active Bins & Sensors</td><td>1,180</td></tr>
+                <tr><td>Waste Collected Today</td><td>32 Tons</td></tr>
+                <tr><td>Waste Collected This Week</td><td>210 Tons</td></tr>
+                <tr><td>Segregation Accuracy</td><td>87%</td></tr>
+            </table>
+            <p>➡️ Provides a quick snapshot of overall city cleanliness and waste management efficiency.</p>
+        </div>
+
+        <!-- SMART BIN & SENSOR MONITORING -->
+        <div class="card">
+            <h3>🛰️ Smart Bin & Sensor Monitoring</h3>
+            <table>
+                <tr>
+                    <th>Bin ID</th>
+                    <th>Location</th>
+                    <th>Fill %</th>
+                    <th>Sensor Status</th>
+                    <th>Last Update</th>
+                </tr>
+                <tr><td>SW-101</td><td>Main Street</td><td>20%</td><td class="status-active">Active</td><td>Today 8:30 AM</td></tr>
+                <tr><td>SW-234</td><td>Market Road</td><td>95%</td><td class="status-active">Active</td><td>Today 8:00 AM</td></tr>
+                <tr><td>SW-410</td><td>Residential Block B</td><td>50%</td><td class="status-inactive">Inactive</td><td>Yesterday 6:00 PM</td></tr>
+                <tr><td>SW-981</td><td>Bus Stand</td><td>100%</td><td class="status-active">Active</td><td>Today 7:45 AM</td></tr>
+            </table>
+            <p>✔ Prevent bin overflow<br>✔ Detect faulty sensors<br>✔ Plan maintenance schedules<br>✔ Optimize collection routes</p>
+        </div>
+
+        <!-- WASTE COLLECTION MANAGEMENT -->
+        <div class="card">
+            <h3>🚛 Waste Collection Management</h3>
+            <table>
+                <tr>
+                    <th>Bin ID</th>
+                    <th>Location</th>
+                    <th>Priority</th>
+                    <th>Assigned Vehicle / Worker</th>
+                    <th>Last Update</th>
+                </tr>
+                <tr><td>SW-234</td><td>Market Road</td><td class="status-full">High</td><td>Truck #12 / Worker A</td><td>Today 9:15 AM</td></tr>
+                <tr><td>SW-981</td><td>Bus Stand</td><td class="status-full">High</td><td>Truck #8 / Worker B</td><td>Today 8:50 AM</td></tr>
+                <tr><td>SW-410</td><td>Residential Block B</td><td class="status-half">Medium</td><td>Truck #5 / Worker C</td><td>Yesterday 6:30 PM</td></tr>
+                <tr><td>SW-101</td><td>Main Street</td><td class="status-empty">Low</td><td>Truck #3 / Worker D</td><td>Yesterday 5:00 PM</td></tr>
+            </table>
+            <p>✔ Assign and manage waste collection<br>✔ Optimize collection schedules<br>✔ Update collection status in real time<br>✔ Track priority bins</p>
+        </div>
+
+        <!-- WASTE TRACKING & TRANSPARENCY -->
+        <div class="card">
+            <h3>📦 Waste Tracking & Transparency System</h3>
+            <table>
+                <tr>
+                    <th>Waste ID</th>
+                    <th>Generated By</th>
+                    <th>Timeline</th>
+                    <th>Current Status</th>
+                </tr>
+                <tr><td>WT-1001</td><td>Citizen A</td><td>Collected → Transported → Recycled</td><td class="status-active">In Recycling</td></tr>
+                <tr><td>WT-1002</td><td>Citizen B</td><td>Collected → Transported</td><td class="status-inactive">In Transit</td></tr>
+                <tr><td>WT-1003</td><td>Citizen C</td><td>Collected</td><td class="status-active">Pending Processing</td></tr>
+                <tr><td>WT-1004</td><td>Citizen D</td><td>Collected → Transported → Recycled</td><td class="status-active">Recycled</td></tr>
+            </table>
+            <p>✔ Ensure accountability<br>✔ Confirm waste reaches recycling facilities<br>✔ Reduce illegal dumping<br>✔ Track the full journey of waste from citizen to recycling</p>
+        </div>
+
+        <!-- BAR CHARTS AND PIE CHARTS -->
+        <div class="card">
+            <h3>🗑️ Smart Bins & Sensors Chart</h3>
+            <canvas id="binsChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>📊 Live Bin Fill Levels</h3>
+            <canvas id="fillChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>♻️ Waste Collection Trend</h3>
+            <canvas id="wasteChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>✅ Segregation Accuracy</h3>
+            <canvas id="segChart"></canvas>
+        </div>
+
+    </div>
+</div>
+
+<script>
+/* 3D Earth */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({canvas: earth, alpha:true});
+renderer.setSize(innerWidth, innerHeight);
+
+const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(3,32,32),
+    new THREE.MeshStandardMaterial({
+        map: new THREE.TextureLoader().load(
+            "https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg"
+        )
+    })
+);
+scene.add(globe);
+
+const light = new THREE.PointLight(0xffffff,1.5);
+light.position.set(5,5,5);
+scene.add(light);
+camera.position.z = 6;
+
+(function animate(){
+    requestAnimationFrame(animate);
+    globe.rotation.y += 0.0015;
+    renderer.render(scene,camera);
+})();
+
+/* CHARTS */
+// Bar Chart
+new Chart(binsChart,{
+    type:'bar',
+    data:{
+        labels:['Total Bins','Active Sensors'],
+        datasets:[{data:[1250,1180],backgroundColor:['#22c55e','#16a34a']}]
+    },
+    options:{plugins:{legend:{display:false}}}
+});
+
+// Pie Chart
+new Chart(fillChart,{
+    type:'pie',
+    data:{labels:['Empty','Half','Full'],datasets:[{data:[45,35,20],backgroundColor:['#22c55e','#facc15','#ef4444']}]}
+});
+
+// Line Chart
+new Chart(wasteChart,{
+    type:'line',
+    data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Waste (Tons)',data:[28,30,27,32,35,40,38],borderColor:'#22c55e',fill:false}]}
+});
+
+// Doughnut Chart
+new Chart(segChart,{
+    type:'doughnut',
+    data:{labels:['Correctly Segregated','Incorrect'],datasets:[{data:[87,13],backgroundColor:['#22c55e','#ef4444']}]}
+});
+</script>
+
+</body>
+</html>
